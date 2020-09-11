@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Response;
 use App\Http\Requests\Api\Spa\Auth\LoginRequest;
+use Illuminate\Support\Facades\Lang;
+use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
@@ -26,11 +28,18 @@ class LoginController extends Controller
                 'grant_type' => 'password',
                 'client_id' => Config::get('services.passport.client_id'),
                 'client_secret' => Config::get('services.passport.client_secret'),
-                'username' => $request->email,
-                'password' => $request->password
-            ])
-            ->json();
+                'username' => $request->input('email'),
+                'password' => $request->input('password')
+            ]);
 
-        return Response::json($response);
+        if ($response->failed()) {
+            if ($response->json()['error'] === 'invalid_grant') {
+                throw ValidationException::withMessages([
+                    'email' => [Lang::get('auth.failed')]
+                ]);
+            }
+        }
+
+        return Response::json($response->json(), $response->getStatusCode());
     }
 }
